@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal Finance Advisor Bot</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💰</text></svg>">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">
+          <div class="brand-icon">
+            <i class="fa-solid fa-wallet"></i>
+          </div>
+          <div class="brand-text">
+            <h2>FinanceBot</h2>
+            <span class="subtext">Personal Advisor</span>
+          </div>
+        </div>
+        <button class="btn-close-sidebar" id="closeSidebarBtn" aria-label="Close Sidebar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-section="dashboard">
+          <i class="fa-solid fa-chart-pie"></i>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" data-section="expenses">
+          <i class="fa-solid fa-receipt"></i>
+          <span>Expenses</span>
+        </button>
+        <button class="nav-item" data-section="budget">
+          <i class="fa-solid fa-bullseye"></i>
+          <span>Budget Advisor</span>
+        </button>
+        <button class="nav-item" data-section="ai-advisor">
+          <i class="fa-solid fa-robot"></i>
+          <span>AI Financial Advisor</span>
+        </button>
+        <button class="nav-item" data-section="summary">
+          <i class="fa-solid fa-file-invoice-dollar"></i>
+          <span>Monthly Summary</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="quick-demo-box">
+          <div class="demo-title">
+            <i class="fa-solid fa-vial-circle-check"></i> Course Demo Data
+          </div>
+          <p class="demo-desc">Quickly seed ₹20k income & ₹11k expenses</p>
+          <div class="demo-actions">
+            <button class="btn btn-secondary btn-sm" id="seedDataBtn" title="Load course demo data">
+              <i class="fa-solid fa-cloud-arrow-down"></i> Load Demo
+            </button>
+            <button class="btn btn-outline-danger btn-sm" id="resetDataBtn" title="Reset all data">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+          </div>
+        </div>
+        <div class="engine-status">
+          <span class="pulse-dot"></span>
+          <span id="engineStatusLabel">Smart Engine: Ready</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Overlay for mobile sidebar -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Navigation Header -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="btn-hamburger" id="hamburgerBtn" aria-label="Open Navigation">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <div class="view-header">
+            <h1 id="viewTitle">Dashboard</h1>
+            <p id="viewSubtitle">Overview of your monthly cash flow, savings, and expense breakdown</p>
+          </div>
+        </div>
+
+        <div class="topbar-right">
+          <!-- Month Selector -->
+          <div class="month-selector-wrapper">
+            <label for="monthSelector"><i class="fa-regular fa-calendar"></i> Month:</label>
+            <select id="monthSelector" class="form-select">
+              <!-- Dynamically populated -->
+            </select>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <button class="btn btn-primary" id="openIncomeModalBtn">
+            <i class="fa-solid fa-indian-rupee-sign"></i> Set Income
+          </button>
+          <button class="btn btn-accent" id="quickAddExpenseBtn">
+            <i class="fa-solid fa-plus"></i> Add Expense
+          </button>
+        </div>
+      </header>
+
+      <!-- VIEW 1: DASHBOARD -->
+      <section class="content-section active" id="section-dashboard">
+        <!-- KPI Cards Grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card income-card">
+            <div class="kpi-icon">
+              <i class="fa-solid fa-arrow-trend-up"></i>
+            </div>
+            <div class="kpi-content">
+              <span class="kpi-label">Monthly Income</span>
+              <h3 class="kpi-value" id="kpiIncome">₹0.00</h3>
+              <span class="kpi-badge badge-neutral" id="kpiIncomeBadge">Not Set</span>
+            </div>
+          </div>
+
+          <div class="kpi-card expense-card">
+            <div class="kpi-icon">
+              <i class="fa-solid fa-arrow-trend-down"></i>
+            </div>
+            <div class="kpi-content">
+              <span class="kpi-label">Total Expenses</span>
+              <h3 class="kpi-value" id="kpiExpenses">₹0.00</h3>
+              <span class="kpi-badge badge-warning" id="kpiExpenseBadge">0% of Income</span>
+            </div>
+          </div>
+
+          <div class="kpi-card savings-card">
+            <div class="kpi-icon">
+              <i class="fa-solid fa-piggy-bank"></i>
+            </div>
+            <div class="kpi-content">
+              <span class="kpi-label">Current Savings</span>
+              <h3 class="kpi-value" id="kpiSavings">₹0.00</h3>
+              <span class="kpi-badge badge-success" id="kpiSavingsBadge">Balance</span>
+            </div>
+          </div>
+
+          <div class="kpi-card rate-card">
+            <div class="kpi-icon">
+              <i class="fa-solid fa-percent"></i>
+            </div>
+            <div class="kpi-content">
+              <span class="kpi-label">Savings Percentage</span>
+              <h3 class="kpi-value" id="kpiSavingsRate">0.0%</h3>
+              <span class="kpi-badge badge-info" id="kpiRateBadge">Target: 20%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Overspending Alerts Banner (if any) -->
+        <div class="alert-banner hidden" id="overspendingAlertBanner">
+          <div class="alert-banner-icon">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div class="alert-banner-body">
+            <h4>Budget Exceeded Alert</h4>
+            <p id="overspendingAlertText">You have exceeded your recommended budget limits in one or more categories.</p>
+          </div>
+          <button class="btn btn-outline btn-sm" id="viewBudgetBtn">View Budget Details</button>
+        </div>
+
+        <!-- Charts & Activity Row -->
+        <div class="grid-2-col">
+          <!-- Expense Breakdown Chart -->
+          <div class="card chart-card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fa-solid fa-chart-pie text-accent"></i>
+                <h3>Expense Breakdown by Category</h3>
+              </div>
+              <span class="card-badge" id="chartTotalBadge">₹0.00 Total</span>
+            </div>
+            <div class="card-body chart-body">
+              <div class="chart-wrapper">
+                <canvas id="categoryChart"></canvas>
+              </div>
+              <div class="category-legend" id="categoryLegend">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Monthly Cash Flow & Health Card -->
+          <div class="card flow-card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fa-solid fa-scale-balanced text-primary"></i>
+                <h3>Financial Health Status</h3>
+              </div>
+              <span class="grade-badge" id="dashHealthGrade">Grade: A</span>
+            </div>
+            <div class="card-body">
+              <div class="health-indicator-box">
+                <div class="health-meta">
+                  <span class="status-name" id="dashHealthStatus">Calculating...</span>
+                  <span class="status-score" id="dashHealthScore">Score: 85/100</span>
+                </div>
+                <div class="progress-bar-container">
+                  <div class="progress-bar" id="dashHealthBar" style="width: 85%;"></div>
+                </div>
+              </div>
+
+              <!-- Quick Stats Comparison Table -->
+              <div class="mini-metrics">
+                <div class="mini-metric-item">
+                  <span class="mm-label">Transactions</span>
+                  <span class="mm-value" id="dashTxCount">0</span>
+                </div>
+                <div class="mini-metric-item">
+                  <span class="mm-label">Top Expense Category</span>
+                  <span class="mm-value" id="dashTopCat">None</span>
+                </div>
+                <div class="mini-metric-item">
+                  <span class="mm-label">Top Category Amount</span>
+                  <span class="mm-value" id="dashTopCatAmt">₹0.00</span>
+                </div>
+                <div class="mini-metric-item">
+                  <span class="mm-label">Target Savings (20%)</span>
+                  <span class="mm-value" id="dashTargetSavings">₹0.00</span>
+                </div>
+              </div>
+
+              <div class="advisor-quick-snippet" id="dashAdvisorSnippet">
+                <div class="snippet-header">
+                  <i class="fa-solid fa-lightbulb"></i>
+                  <strong>Advisor Quick Tip:</strong>
+                </div>
+                <p id="dashSnippetText">Record your monthly income and expenses to receive real-time financial coaching.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Expenses Section -->
+        <div class="card table-card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-clock-rotate-left text-primary"></i>
+              <h3>Recent Expenses</h3>
+            </div>
+            <button class="btn btn-text btn-sm" id="viewAllExpensesBtn">View All Expenses <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th class="text-right">Amount</th>
+                    <th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="recentExpensesTableBody">
+                  <tr>
+                    <td colspan="5" class="empty-table-state">No recent expenses found for this month.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: EXPENSES -->
+      <section class="content-section" id="section-expenses">
+        <!-- Add Expense Card -->
+        <div class="card form-card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-plus-circle text-accent"></i>
+              <h3>Record New Expense</h3>
+            </div>
+            <span class="helper-text">Add any individual expense with amount, category, and date</span>
+          </div>
+          <div class="card-body">
+            <form id="addExpenseForm" class="expense-form-grid">
+              <div class="form-group">
+                <label for="expenseAmount">Amount (₹) *</label>
+                <div class="input-with-icon">
+                  <span class="input-prefix">₹</span>
+                  <input type="number" id="expenseAmount" step="0.01" min="0.01" placeholder="e.g. 1500" required class="form-input">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label for="expenseCategory">Category *</label>
+                <select id="expenseCategory" required class="form-select">
+                  <option value="" disabled selected>Select category...</option>
+                  {% for cat in categories %}
+                  <option value="{{ cat }}">{{ cat }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label for="expenseDate">Date *</label>
+                <input type="date" id="expenseDate" required class="form-input">
+              </div>
+
+              <div class="form-group col-span-2">
+                <label for="expenseDescription">Description / Note *</label>
+                <input type="text" id="expenseDescription" maxlength="200" placeholder="e.g. Grocery staples at Supermarket" required class="form-input">
+              </div>
+
+              <div class="form-group form-actions">
+                <button type="submit" class="btn btn-accent btn-block" id="saveExpenseBtn">
+                  <i class="fa-solid fa-check"></i> Add Expense
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Expense Filter and Search Bar -->
+        <div class="filter-bar">
+          <div class="filter-group">
+            <div class="search-box">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="searchExpenseInput" placeholder="Search description..." class="form-input">
+            </div>
+            <select id="filterCategorySelect" class="form-select">
+              <option value="">All Categories</option>
+              {% for cat in categories %}
+              <option value="{{ cat }}">{{ cat }}</option>
+              {% endfor %}
+            </select>
+            <button class="btn btn-secondary btn-sm" id="clearExpenseFiltersBtn" title="Clear Filters">
+              <i class="fa-solid fa-rotate-left"></i> Reset
+            </button>
+          </div>
+
+          <div class="filter-stats">
+            <span id="filteredCountLabel">Showing 0 expenses</span>
+            <span class="pipe-divider">|</span>
+            <span id="filteredTotalLabel">Total: ₹0.00</span>
+          </div>
+        </div>
+
+        <!-- All Expenses Table -->
+        <div class="card table-card">
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Category</th>
+                    <th>Description</th>
+                    <th class="text-right">Amount (₹)</th>
+                    <th class="text-center">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="allExpensesTableBody">
+                  <tr>
+                    <td colspan="5" class="empty-table-state">Loading expenses...</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: BUDGET ADVISOR -->
+      <section class="content-section" id="section-budget">
+        <!-- Budget Philosophy Banner -->
+        <div class="card info-banner-card">
+          <div class="banner-body">
+            <div class="banner-icon">
+              <i class="fa-solid fa-compass"></i>
+            </div>
+            <div class="banner-text">
+              <h3>Sensible 50/30/20 Budget Architecture</h3>
+              <p>
+                Your personalized budget allocations are calculated directly from your monthly income:
+                <strong>Needs (50%)</strong> for essentials like Rent, Food, Utilities, Healthcare;
+                <strong>Wants & Growth (30%)</strong> for Transport, Education, Entertainment, Shopping;
+                and <strong>Savings (20%)</strong> preserved for future goals and emergencies.
+              </p>
+            </div>
+          </div>
+          <div class="banner-stat-box">
+            <div class="stat-pill">
+              <span class="label">Monthly Income</span>
+              <strong id="budgetIncomeRef">₹0.00</strong>
+            </div>
+            <div class="stat-pill">
+              <span class="label">Target Savings (20%)</span>
+              <strong id="budgetTargetSavingsRef">₹0.00</strong>
+            </div>
+            <div class="stat-pill">
+              <span class="label">Total Expense Budget (80%)</span>
+              <strong id="budgetTotalExpenseCapRef">₹0.00</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Category Budget Comparison Cards -->
+        <div class="section-title-bar">
+          <h3>Category Budget Limits vs. Actual Spending</h3>
+          <span class="badge badge-info">Real-time status</span>
+        </div>
+
+        <div class="budget-grid" id="budgetComparisonGrid">
+          <!-- Dynamically populated budget cards -->
+        </div>
+
+        <!-- Overspending Warnings Detail Section -->
+        <div class="card alert-detail-card" id="overspendingDetailSection">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-triangle-exclamation text-danger"></i>
+              <h3>Active Overspending Alerts</h3>
+            </div>
+            <span class="card-badge badge-danger" id="overspendingCountBadge">0 Warnings</span>
+          </div>
+          <div class="card-body">
+            <div id="overspendingAlertsContainer">
+              <p class="text-success"><i class="fa-solid fa-circle-check"></i> Great job! No category budgets have been exceeded this month.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: AI FINANCIAL ADVISOR -->
+      <section class="content-section" id="section-ai-advisor">
+        <!-- Advisor Status & Mode Card -->
+        <div class="card ai-hero-card">
+          <div class="ai-hero-header">
+            <div class="ai-hero-branding">
+              <div class="ai-avatar">
+                <i class="fa-solid fa-robot"></i>
+              </div>
+              <div>
+                <h2>Personal AI Financial Advisor</h2>
+                <p>Actionable, intelligent spending evaluations and customized wealth-building recommendations</p>
+              </div>
+            </div>
+            <div class="ai-mode-tag" id="aiModeTag">
+              <i class="fa-solid fa-microchip"></i>
+              <span id="aiModeLabel">Smart Rule-Based Engine (Offline Mode)</span>
+            </div>
+          </div>
+
+          <div class="ai-prompt-area">
+            <div class="prompt-chips">
+              <span class="chip-label">Quick Analysis Inquiries:</span>
+              <button class="chip-btn" data-query="How can I cut expenses to increase my monthly savings?">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> Boost Monthly Savings
+              </button>
+              <button class="chip-btn" data-query="Analyze my discretionary shopping and entertainment spending">
+                <i class="fa-solid fa-bag-shopping"></i> Audit Discretionary Spends
+              </button>
+              <button class="chip-btn" data-query="Evaluate my emergency fund and financial safety net">
+                <i class="fa-solid fa-shield-halved"></i> Emergency Fund Readiness
+              </button>
+            </div>
+
+            <div class="ai-input-group">
+              <input type="text" id="aiCustomPrompt" placeholder="Ask your financial advisor anything (e.g. 'Where am I overspending the most?')" class="form-input">
+              <button class="btn btn-primary" id="askAiBtn">
+                <span class="btn-text"><i class="fa-solid fa-paper-plane"></i> Ask Advisor</span>
+                <span class="spinner hidden" id="aiSpinner"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Output Results Card -->
+        <div class="card advisor-results-card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-lightbulb text-warning"></i>
+              <h3 id="adviceSummaryTitle">Personalized Financial Diagnosis</h3>
+            </div>
+            <span class="card-badge" id="adviceSourceBadge">Smart Rule Engine</span>
+          </div>
+
+          <div class="card-body">
+            <div class="advice-warning-callout hidden" id="aiWarningCallout"></div>
+
+            <div class="advice-section-block">
+              <h4><i class="fa-solid fa-magnifying-glass-chart"></i> Core Insights & Spending Warnings</h4>
+              <ul class="advice-list" id="adviceRecommendationsList">
+                <li>Record your monthly income and expenses to view tailored advice.</li>
+              </ul>
+            </div>
+
+            <div class="advice-section-block">
+              <h4><i class="fa-solid fa-list-check"></i> Recommended Next Steps</h4>
+              <ul class="action-items-list" id="adviceActionItemsList">
+                <li>Configure your monthly income to activate personalized budget limits.</li>
+              </ul>
+            </div>
+
+            <!-- Transparency Disclaimer -->
+            <div class="advisor-footer-note">
+              <i class="fa-solid fa-circle-info"></i>
+              <span>
+                <strong>System Transparency:</strong> To enable real-time generative LLM advice via Google Gemini or OpenAI, configure <code>GEMINI_API_KEY</code> or <code>OPENAI_API_KEY</code> in your <code>.env</code> file. When no external API key is present, our built-in deterministic financial algorithms reliably protect your data and provide instant, accurate guidance.
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 5: MONTHLY SUMMARY -->
+      <section class="content-section" id="section-summary">
+        <div class="card summary-header-card">
+          <div class="summary-top">
+            <div>
+              <span class="badge badge-primary">Comprehensive Financial Statement</span>
+              <h2 id="summaryMonthTitle">Financial Report</h2>
+              <p id="summaryPeriodSubtitle">Monthly income, outflow, savings rate, and financial health diagnosis</p>
+            </div>
+            <div class="summary-actions">
+              <button class="btn btn-secondary" id="printSummaryBtn">
+                <i class="fa-solid fa-print"></i> Print / Save PDF
+              </button>
+            </div>
+          </div>
+
+          <!-- Summary Metric Blocks -->
+          <div class="summary-metrics-grid">
+            <div class="sum-box">
+              <span class="sum-label">Total Income</span>
+              <h3 class="sum-val text-primary" id="sumIncome">₹0.00</h3>
+            </div>
+            <div class="sum-box">
+              <span class="sum-label">Total Expenses</span>
+              <h3 class="sum-val text-danger" id="sumExpenses">₹0.00</h3>
+            </div>
+            <div class="sum-box">
+              <span class="sum-label">Net Savings</span>
+              <h3 class="sum-val text-success" id="sumSavings">₹0.00</h3>
+            </div>
+            <div class="sum-box">
+              <span class="sum-label">Savings Rate</span>
+              <h3 class="sum-val" id="sumSavingsRate">0.0%</h3>
+            </div>
+            <div class="sum-box">
+              <span class="sum-label">Health Score</span>
+              <h3 class="sum-val text-accent" id="sumHealthScore">85/100</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2-col">
+          <!-- Highlights & Overspending Areas -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fa-solid fa-award text-warning"></i>
+                <h3>Key Spending Highlights</h3>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="highlight-item">
+                <div class="hl-icon"><i class="fa-solid fa-crown text-warning"></i></div>
+                <div class="hl-content">
+                  <span class="hl-title">Highest Spending Category</span>
+                  <p class="hl-value" id="sumHighestCategory">None recorded yet</p>
+                </div>
+              </div>
+
+              <div class="highlight-item">
+                <div class="hl-icon"><i class="fa-solid fa-triangle-exclamation text-danger"></i></div>
+                <div class="hl-content">
+                  <span class="hl-title">Areas of Overspending</span>
+                  <p class="hl-value" id="sumOverspendingSummary">No overspending detected</p>
+                </div>
+              </div>
+
+              <div class="highlight-item">
+                <div class="hl-icon"><i class="fa-solid fa-shield-heart text-success"></i></div>
+                <div class="hl-content">
+                  <span class="hl-title">Financial Health Assessment</span>
+                  <p class="hl-value" id="sumHealthAssessment">Healthy condition</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Monthly Recommendations -->
+          <div class="card">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fa-solid fa-clipboard-check text-success"></i>
+                <h3>Advisor Recommendations</h3>
+              </div>
+            </div>
+            <div class="card-body">
+              <ul class="summary-rec-list" id="sumRecommendationsList">
+                <li>Add expenses to generate customized monthly recommendations.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- Full Category Breakdown Table -->
+        <div class="card table-card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fa-solid fa-table-list text-primary"></i>
+              <h3>Complete Category Spending Breakdown</h3>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Category</th>
+                    <th class="text-right">Recommended Limit (₹)</th>
+                    <th class="text-right">Actual Spent (₹)</th>
+                    <th class="text-right">Variance / Difference (₹)</th>
+                    <th class="text-right">Budget Utilized</th>
+                    <th class="text-center">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="summaryBreakdownTableBody">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Income Modal -->
+  <div class="modal-backdrop hidden" id="incomeModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <i class="fa-solid fa-indian-rupee-sign text-accent"></i>
+          <h3>Set Monthly Income</h3>
+        </div>
+        <button class="btn-close-modal" id="closeIncomeModalBtn">&times;</button>
+      </div>
+      <form id="incomeForm">
+        <div class="modal-body">
+          <p class="modal-instruction">Enter your monthly take-home income. This will be used to calculate your savings rate and category budgets.</p>
+
+          <div class="form-group">
+            <label for="incomeAmount">Monthly Income Amount (₹) *</label>
+            <div class="input-with-icon">
+              <span class="input-prefix">₹</span>
+              <input type="number" id="incomeAmount" step="0.01" min="0" placeholder="e.g. 20000" required class="form-input">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="incomeMonth">Applicable Month *</label>
+            <input type="month" id="incomeMonth" required class="form-input">
+          </div>
+
+          <div class="form-group">
+            <label for="incomeSource">Income Source / Note</label>
+            <input type="text" id="incomeSource" placeholder="e.g. Primary Job Salary" class="form-input">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelIncomeModalBtn">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveIncomeBtn">Save Income</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
